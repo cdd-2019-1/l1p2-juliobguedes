@@ -25,33 +25,30 @@ Entretanto, podemos descobrir mais coisas através de uma análise sobre a ativi
 3. [Quais Deputados conseguem maior participação nas redes sociais? E Senadores?](#p3)
 4. [Quais congressistas "hitaram" no Twitter?](#p4)
 5. [Quais partidos fazem "publi" no Twitter?](#p5)
-6. [Troco Likes e SDV](#p6)
+6. [Quais congressistas aderiram ao "SDV"?](#p6)
 
 ## Análise dos dados
 
-### Qual a representatividade de cada Partido no Twitter? <span id="p1"></span>
+### Qual a representatividade de cada Partido no Twitter? E de cada Estado? <span id="p1"></span>
+
+A representatividade dos partidos no Twitter deveria seguir de acordo com a quantidade de candidatos eleitos em cada partido, sendo  PSL e PT os mais representados. Quanto aos estados, creio que os estados do Sudeste e Centro-Oeste sejam os que possuem mais representantes.
 
 ### Quais os congressistas que mais participam no Twitter? Quais menos participam? <span id="p2"></span>
 
+Da mesma forma que na pergunta anterior, creio que os congressistas dos dois partidos com maior número, PSL e PT, sejam os que mais participam.
+
 ### Quais Deputados conseguem maior participação nas redes sociais? E Senadores? <span id="p3"></span>
+
+Creio que entre os Deputados estejam Eduardo Bolsonaro, Rodrigo Maia e Marcelo Freixo. Entre os Senadores, Flávio Bolsonaro, Cid Gomes, Kátia Abreu,
 
 ### Quais congressistas "hitaram" no Twitter? <span id="p4"></span>
 
+Alexandre Frota, Flavio e Eduardo Bolsonaro, Cid Gomes.
+
 ### Quais partidos fazem "publi" no Twitter? <span id="p5"></span>
 
-### Troco Likes e SDV <span id="p6"></span>
+MDB, Novo, Avante.
 
-"Troco Likes" é uma expressão comum nas redes sociais entre os usuários que estão tentando atrair seguidores: enquanto tentam convencer pessoas a seguí-los nas redes sociais, oferecem seguir de volta, uma proposta de mútuo benefício. Em outras redes sociais, a exemplo do Instagram, é comum que um usuário siga vários outros usuários, em busca de que ele o siga de volta, o famoso "SDV", "Segue de Volta".
+### Quais congressistas aderiram ao "SDV"? <span id="p6"></span>
 
-Entretanto, para ser eleito um congressista, um cidadão precisa de uma parcela razoavelmente grande dos eleitores e, por isso, é coerente que um congressista tenha um número maior de seguidores do que pessoas que segue. Tentaremos então identificar como é o engajamento dos congressistas que não se encaixam neste padrão.
-
-```{r}
-atividade %>%
-  filter(segue > seguidores) %>%
-  group_by(partido) %>%
-  summarise(e_total = sum(engaj_total), e_mdn=median(engaj_mediano), e_max=max(engaj_max), e_prop=sum(engaj_total_proprio)) %>%
-  mutate(partido = fct_reorder(partido, desc(-e_total))) %>%
-  ggplot(mapping = aes(x = partido, y = e_total)) +
-  geom_histogram(stat = 'identity') + 
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-```
+PSL, PSDB, PC, PSC.
