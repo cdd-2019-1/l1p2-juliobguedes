@@ -8,6 +8,7 @@ theme: sandstone
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 library(tidyverse)
+library(ggrepel)
 source(here::here("code/lib.R"))
 theme_set(theme_bw())
 ```
@@ -25,7 +26,7 @@ Entretanto, podemos descobrir mais coisas através de uma análise sobre a ativi
 3. [Quais Deputados conseguem maior participação nas redes sociais? E Senadores?](#p3)
 4. [Quais congressistas "hitaram" no Twitter?](#p4)
 5. [Quais partidos fazem "publi" no Twitter?](#p5)
-6. [Troco Likes e SDV](#p6)
+6. [Quais congressistas aderiram ao "SDV"?](#p6)
 
 ## Análise dos dados
 
@@ -39,19 +40,41 @@ Entretanto, podemos descobrir mais coisas através de uma análise sobre a ativi
 
 ### Quais partidos fazem "publi" no Twitter? <span id="p5"></span>
 
-### Troco Likes e SDV <span id="p6"></span>
+### Quais congressistas aderiram ao "SDV"? <span id="p6"></span>
 
-"Troco Likes" é uma expressão comum nas redes sociais entre os usuários que estão tentando atrair seguidores: enquanto tentam convencer pessoas a seguí-los nas redes sociais, oferecem seguir de volta, uma proposta de mútuo benefício. Em outras redes sociais, a exemplo do Instagram, é comum que um usuário siga vários outros usuários, em busca de que ele o siga de volta, o famoso "SDV", "Segue de Volta".
+"SDV" é uma expressão comum nas redes sociais entre os usuários que estão tentando atrair seguidores: enquanto tentam convencer pessoas a seguí-los nas redes sociais, oferecem seguir de volta, uma proposta de mútuo benefício, em que "SDV" é a abreviação para "Segue de Volta".
 
 Entretanto, para ser eleito um congressista, um cidadão precisa de uma parcela razoavelmente grande dos eleitores e, por isso, é coerente que um congressista tenha um número maior de seguidores do que pessoas que segue. Tentaremos então identificar como é o engajamento dos congressistas que não se encaixam neste padrão.
+
+O objetivo da nossa pergunta é, portanto, descobrir como é o engajamento no Twitter quando algum desses deputados publica algo autoral:
 
 ```{r}
 atividade %>%
   filter(segue > seguidores) %>%
   group_by(partido) %>%
-  summarise(e_total = sum(engaj_total), e_mdn=median(engaj_mediano), e_max=max(engaj_max), e_prop=sum(engaj_total_proprio)) %>%
-  mutate(partido = fct_reorder(partido, desc(-e_total))) %>%
-  ggplot(mapping = aes(x = partido, y = e_total)) +
-  geom_histogram(stat = 'identity') + 
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  summarise(e_total = sum(engaj_total_proprio),
+            e_mdn=median(engaj_mediano_proprio),
+            e_max=max(engaj_max_proprio), c=n()) %>%
+  ggplot(mapping = aes(x = c, y = e_total), color=factor(partido)) +
+  geom_point() + geom_label_repel(aes(label=partido), hjust=1, vjust=1, label.size = NA) +
+  xlab("Quantidade de Congressistas no Partido") + ylab("Engajamento") +
+  scale_y_continuous(label=scales::comma) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), axis.text.y = element_text(angle = 45, hjust = 1))
+```
+
+Como podemos ver no gráfico, o engajamento total em conteúdo autoral dos congresistas do PSL que , PRB e MDB é bem pequeno. Vejamos então como deveria ser o engajamento médio de um congressista destes partidos:
+
+```{r}
+atividade %>%
+  group_by(partido) %>%
+  summarise(e_total = sum(engaj_total_proprio), 
+            e_mdn=median(engaj_mediano_proprio),
+            e_max=max(engaj_max_proprio),
+            e_prop=sum(engaj_total_proprio),
+            c=n()) %>%
+  ggplot(mapping = aes(x = c, y = e_mdn)) +
+  geom_point() + geom_label_repel(aes(label=partido), hjust=1, vjust=1, label.size = NA) +
+  xlab("Quantidade de Congressistas no Partido") + ylab("Engajamento Comum") +
+  scale_y_continuous(label=scales::comma) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), axis.text.y = element_text(angle = 45, hjust = 1))
 ```
