@@ -55,6 +55,19 @@ p1 <- atividade %>%
 ggplotly(p1, tooltip = c("n"))
 ```
 
+Em números absolutos, parece alarmante que o PSL tenha 11 congressistas que não participam publicamente do Twitter, já que é o segundo maior partido na câmara. Vejamos então a mesma relação, mas agora em proporção:
+
+```{r warning=FALSE}
+p11 <- atividade %>%
+  group_by(partido) %>%
+  mutate(tem_tt = if(!is.na(twitter)) 1 else 0, total = 1) %>%
+  summarise(porcentagem_tt = sum(tem_tt) / sum(total)) %>%
+  ggplot(mapping = aes(x = partido, y = porcentagem_tt)) +
+  geom_bar(stat = 'identity')
+
+glimpse(p11)
+```
+
 ### Quais os congressistas que mais participam no Twitter? Quais menos participam? <span id="p2"></span>
 
 ### Quais Deputados conseguem maior participação nas redes sociais? E Senadores? <span id="p3"></span>
