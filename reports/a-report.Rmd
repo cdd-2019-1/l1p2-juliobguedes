@@ -9,6 +9,7 @@ theme: sandstone
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 library(tidyverse)
 library(ggrepel)
+library(gridExtra)
 library(plotly)
 source(here::here("code/lib.R"))
 theme_set(theme_bw())
@@ -16,7 +17,7 @@ theme_set(theme_bw())
 
 ```{r read, echo = FALSE}
 atividade = read_projectdata()
-atividade_real <- atividade %>% filter(!is.na(twitter))
+atividade_real <- atividade %>% filter(!is.na(twitter) & !is.na(seguidores))
 ```
 
 No Brasil e em muitos países Democráticos, é comum que membros da Câmara dos Deputados e do Senado Federal tenham alguma forma de se comunicar, ampla e continuamente, com a população. Uma forma fácil de fazer isso é através das redes sociais: Facebook, Instagram e Twitter têm se tornado mais um meio no qual a população pode acompanhar as atividades parlamentares.
@@ -44,35 +45,134 @@ Se a internet facilitou a interação dos congressistas com seus eleitores, eles
 
 ```{r warning=FALSE}
 p1 <- atividade %>%
-  filter(is.na(twitter)) %>%
+  filter(is.na(twitter) | is.na(seguidores)) %>%
   group_by(partido) %>%
-  count(twitter) %>%
+  summarize(n=n()) %>%
   ggplot(mapping = aes(x = reorder(partido, n), y = n)) +
   geom_histogram(stat = 'identity') + 
-  xlab("Partido") + ylab("Quantidade de Congressistas") + ggtitle("Quantos congressistas não possuem Twitter?") +
+  xlab("Partido") + ylab("Quantidade de Congressistas") + ggtitle("Quantos congressistas não possuem Twitter ativo?") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 ggplotly(p1, tooltip = c("n"))
 ```
 
-Em números absolutos, parece alarmante que o PSL tenha 11 congressistas que não participam publicamente do Twitter, já que é o segundo maior partido na câmara. Vejamos então a mesma relação, mas agora em proporção:
+Outra forma de visualizar essa quantidade é considerando a proporção de congressistas com ou sem Twitter por partido. Vejamos:
 
 ```{r warning=FALSE}
-p11 <- atividade %>%
+atividade %>%
+  rowwise() %>%
+  mutate(tem_tt=if(!is.na(twitter) & !is.na(seguidores)) 1 else 0, n_tt=if(is.na(twitter) | is.na(seguidores)) 1 else 0) %>%
   group_by(partido) %>%
-  mutate(tem_tt = if(!is.na(twitter)) 1 else 0, total = 1) %>%
-  summarise(porcentagem_tt = sum(tem_tt) / sum(total)) %>%
-  ggplot(mapping = aes(x = partido, y = porcentagem_tt)) +
-  geom_bar(stat = 'identity')
+  summarise(com_tt = sum(tem_tt), sem_tt = sum(n_tt)) %>%
+  plot_ly(x = ~partido, y = ~sem_tt, type = 'bar', name = 'Não tem Twitter') %>%
+  add_trace(y = ~com_tt, name="Tem Twitter") %>%
+  layout(yaxis = list(title = 'Quantidade de Congressistas'), barmode = 'stack')
+```
 
-glimpse(p11)
+Quando analisamos por estado, podemos ver a seguinte distribuição:
+
+```{r warning=FALSE}
+p12 <- atividade %>%
+  filter(is.na(twitter) | is.na(seguidores)) %>%
+  group_by(UF) %>%
+  summarize(n=n()) %>%
+  ggplot(mapping = aes(x = reorder(UF, n), y = n)) +
+  geom_histogram(stat = 'identity') + 
+  xlab("Estado") + ylab("Quantidade de Congressistas") + ggtitle("Quantos congressistas não possuem Twitter?") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplotly(p12, tooltip = c("n"))
+```
+
+O estado de Minas Gerais é o que mais possui congressistas sem Twitter. Entretanto, precisamos também olhar a proporção:
+
+```{r warning=FALSE}
+atividade %>%
+  rowwise() %>%
+  mutate(tem_tt=if(!is.na(twitter) & !is.na(seguidores)) 1 else 0, n_tt=if(is.na(twitter) | is.na(seguidores)) 1 else 0) %>%
+  group_by(UF) %>%
+  summarise(com_tt = sum(tem_tt), sem_tt = sum(n_tt)) %>%
+  plot_ly(x = ~UF, y = ~sem_tt, type = 'bar', name = 'Não tem Twitter') %>%
+  add_trace(y = ~com_tt, name="Tem Twitter") %>%
+  layout(yaxis = list(title = 'Quantidade de Congressistas'), barmode = 'stack')
 ```
 
 ### Quais os congressistas que mais participam no Twitter? Quais menos participam? <span id="p2"></span>
 
+Para essa análise, considararemos a participação como a soma de tweets e retweets dos congressistas, e buscaremos os 5 congressistas que mais participam e os 10 que menos participam, independente de partido. Vejamos:
+
+```{r warning=FALSE}
+top5 <- atividade_real %>% mutate(participacao = (n_proprio + n_retweet)) %>% top_n(5, participacao) %>%
+  ggplot(mapping = aes(x = reorder(nome_eleitoral, participacao), y = participacao,
+                       text=paste("Nome Eleitoral:", nome_eleitoral,
+                                  "<br>Participações:", participacao,
+                                  "<br>Partido:", partido))) +
+  geom_histogram(stat='identity') + theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ggtitle("Congressistas com maior participação") + xlab("Congressistas") + ylab("Participação")
+bot5 <- atividade_real %>% mutate(participacao = (n_proprio + n_retweet)) %>% filter(participacao != 0) %>%
+  top_n(-5, participacao) %>%
+  ggplot(mapping = aes(x = reorder(nome_eleitoral, participacao), y = participacao,
+                       text=paste("Nome Eleitoral:", nome_eleitoral,
+                                  "<br>Participações:", participacao,
+                                  "<br>Partido:", partido))) +
+  geom_histogram(stat='identity') + theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ggtitle("Congressistas com menor participação") + xlab("Congressistas") + ylab("Participação")
+subplot(ggplotly(bot5, tooltip = c("text")), ggplotly(top5, tooltip = c("text")), nrows = 1)
+```
+
+```{r echo=FALSE, warning=FALSE}
+n_sem_tt <- atividade %>%  mutate(participacao = (n_proprio + n_retweet)) %>% filter(participacao == 0)
+n_sem_tt <- nrow(n_sem_tt)
+```
+
+Ainda que não sejam muitos congressistas com 1 ou 2 participações, são `r n_sem_tt` o número de congressistas que nunca publicaram nada no Twitter.
+
 ### Quais Deputados conseguem maior participação nas redes sociais? E Senadores? <span id="p3"></span>
 
+Para medir a participação utilizaremos ainda os dados dos últimos gráficos, agora agrupados pela casa dos congressistas:
+
+```{r, warning=FALSE}
+p31 <- atividade_real %>% filter(casa == "câmara") %>% mutate(participacao = (n_proprio + n_retweet)) %>%
+  top_n(10, participacao) %>%
+  ggplot(mapping = aes(x = reorder(nome_eleitoral, participacao), y = participacao,
+                       text=paste("Nome Eleitoral:", nome_eleitoral,
+                                  "<br>Participações:", participacao,
+                                  "<br>Partido:", partido))) +
+  geom_histogram(stat='identity') + theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ggtitle("Deputados com maior participação") + xlab("Deputados") + ylab("Participação")
+
+ggplotly(p31, tooltip = c("text"))
+```
+
+```{r, warning=FALSE}
+p32 <- atividade_real %>% filter(casa == "senado") %>% mutate(participacao = (n_proprio + n_retweet)) %>%
+  top_n(10, participacao) %>%
+  ggplot(mapping = aes(x = reorder(nome_eleitoral, participacao), y = participacao, text=paste("Nome Eleitoral:", nome_eleitoral,
+                                  "<br>Participações:", participacao,
+                                  "<br>Partido:", partido))) +
+  geom_histogram(stat='identity') + theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ggtitle("Senadores com maior participação") + xlab("Senadores") + ylab("Participação")
+
+ggplotly(p32, tooltip = c("text"))
+```
+
 ### Quais congressistas "hitaram" no Twitter? <span id="p4"></span>
+
+Das músicas que mais foram tocadas durante o carnaval aos sucessos da billboard, surge o termo "hit", que indica que uma música está no topo das listas e é a mais escutada no momento. Ao longo dos anos surgiram músicas como Gangnam Style e Despacito, que criaram novos limites para os acessos no YouTube e chamaram atenção do público.
+
+Quando falamos no contexto dos congressistas, queremos saber quem são aqueles que mais conseguiram atenção do público e mais engajaram pessoas num único Tweet:
+
+```{r warning=FALSE}
+p4 <- atividade_real %>% top_n(10, engaj_max) %>%
+  ggplot(mapping = aes(x = reorder(nome_eleitoral, engaj_max), y = engaj_max,
+                       text=paste("Nome Eleitoral:", nome_eleitoral, "<br>Twitter:", twitter,
+                                  "<br>Maior Engajamento:", engaj_max, "<br>Partido:", partido,
+                                  "<br>Casa:", casa))) +
+  geom_histogram(stat = "identity") + theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ggtitle("Os Hits do Congresso") + xlab("Congressistas") + ylab("Engajamento num Tweet")
+
+ggplotly(p4, tooltip = c("text"))
+```
 
 ### Quais partidos fazem "publi" no Twitter? <span id="p5"></span>
 
@@ -84,9 +184,9 @@ No nosso contexto de congressistas, queremos entender quais partidos mais fazem 
 p5 <- atividade_real %>%
   filter(n_proprio < n_retweet) %>%
   group_by(partido) %>%
-  summarize(total_retweet=sum(n_retweet), total_proprio=sum(n_proprio)) %>%
+  summarize(total_retweet=sum(n_retweet), total_proprio=sum(n_proprio), c=n()) %>%
   ggplot(mapping = aes(x = total_proprio, y = total_retweet, label = partido,
-                       text=paste("Tweets Próprios:", total_proprio, "<br>Retweets:", total_retweet, "<br>Partido:", partido))) + 
+                       text=paste("Tweets Próprios:", total_proprio, "<br>Retweets:", total_retweet, "<br>Partido:", partido, "<br>Número de Congressistas:", c))) + 
   geom_point() + xlab("Número de Tweets Autorais") + ylab("Número de Retweets") + ggtitle("Tweets vs Retweets: Os divulgadores")
 
 ggplotly(p5, tooltip = c("text"))
@@ -99,9 +199,9 @@ Pelo gráfico, notamos que a distribuição de Tweets e Retweets é quase linear
 ```{r warning=FALSE}
 p6 <- atividade_real %>%
   group_by(partido) %>%
-  summarize(total_retweet=sum(n_retweet), total_proprio=sum(n_proprio)) %>%
+  summarize(total_retweet=sum(n_retweet), total_proprio=sum(n_proprio), c=n()) %>%
   ggplot(mapping = aes(x = total_proprio, y = total_retweet, label = partido,
-                       text=paste("Tweets Próprios:", total_proprio, "<br>Retweets:", total_retweet, "<br>Partido:", partido))) + 
+                       text=paste("Tweets Próprios:", total_proprio, "<br>Retweets:", total_retweet, "<br>Partido:", partido, "<br>Número de Congressistas:", c))) + 
   geom_point() + xlab("Número de Tweets Autorais") + ylab("Número de Retweets") + ggtitle("Tweets vs Retweets: Todo mundo")
 
 ggplotly(p6, tooltip = c("text"))
@@ -133,7 +233,8 @@ glimpse(p62)
 
 Podemos então perceber que:
 * Os congressistas do AVANTE, PMN e Sem Partido não deram nenhum retweet, e os retweets são 0% do total;
-* Os congressistas do DC e do PPL nem deram retweets nem twittaram nada, mesmo que possuam conta oficial no Twitter.
+* Os congressistas do DC e do PPL nem deram retweets nem twittaram nada, mesmo que possuam conta oficial no Twitter;
+* Apenas 7 congressistas do PT são responsáveis por mais metade dos retweets do partido inteiro.
 
 ### Quais congressistas aderiram ao "SDV"? <span id="p7"></span>
 
