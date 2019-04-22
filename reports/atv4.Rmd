@@ -25,6 +25,8 @@ O objetivo deste post é analisar as correlações presentes nos dados do Twitte
 
 ## Relação nas publicações
 
+### Tweets vs Retweets
+
 Nesta seção buscaremos identificar se existe relação entre a quantidade de tweets autoriais e a quantidade de retweets feitos pelos congressistas. Inicialmente, vejamos como é a dispersão desses dados:
 
 ```{r}
@@ -123,3 +125,38 @@ atividade_real %>%
 ```
 
 Embora muitas vezes o formato pareça ser mais claro sem a presença de Bacelar, quando ele não está no conjunto, nossa correlação diminui. Ainda assim, em ambos os casos, existe correlação entre as variáveis.
+
+### Quantas pessoas eles seguem vs Quantas pessoas seguem eles
+
+```{r warning=FALSE}
+r6 <- atividade_real %>%
+  ggplot(mapping = aes(x=seguidores, y=segue, label=nome_eleitoral)) +
+  geom_point() + geom_abline(slope = 1) + xlab("Número de Seguidores") +
+  ylab("Número de Seguidos") + ggtitle("Seguidores x Seguidos: Há relação?") +
+  scale_x_continuous(labels = scales::comma)
+ggplotly(r6)
+```
+
+Do mesmo modo que no caso anterior, é difícil identificar quem a relação com a escala atual. Vejamos quando as escalas são logarítmicas:
+
+```{r warning=FALSE}
+r7 <- atividade_real %>%
+  ggplot(mapping = aes(x=seguidores, y=segue, label=nome_eleitoral)) +
+  geom_point() + xlab("Número de Seguidores") +
+  ylab("Número de Seguidos") + ggtitle("Seguidores x Seguidos: Há relação?") +
+  scale_x_log10(labels = scales::comma) + scale_y_log10()
+ggplotly(r7)
+```
+
+Agora é possível visualizar um formato e supor que há correlação, mesmo que a força seja pequena. Vejamos agora as correlações de Pearson, Spearman e Kendall:
+
+```{r}
+atividade_real %>%
+  summarise(
+    pearson = cor(segue, seguidores, method = "pearson"),
+    spearman = cor(segue, seguidores, method = "spearman"),
+    kendall = cor(segue, seguidores, method = "kendall")
+  )
+```
+
+
